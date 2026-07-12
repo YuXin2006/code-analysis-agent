@@ -17,14 +17,25 @@ class LLMClient:
         """
         system_prompt = (
             "你是一个顶级的全栈架构师和代码分析专家。你的任务是分析用户提供的代码库，"
-            "理解其业务背景、核心功能和技术栈。你必须严格按照指定的 JSON Schema 返回结果。"
-            "请确保返回的 JSON 字符串符合 JSON Schema 规范。并且返回的内容全使用中文。"
+            "理解其业务背景、核心功能和技术栈。\n"
+            "你必须严格按照以下 JSON Schema 返回结果，不能添加任何额外字段：\n"
+            "{\n"
+            "  \"background\": \"项目背景描述（一句话或简短段落）\",\n"
+            "  \"core_features\": [\"功能1\", \"功能2\", ...],\n"
+            "  \"tech_stack\": {\n"
+            "    \"language\": \"主要编程语言\",\n"
+            "    \"framework\": \"核心框架\",\n"
+            "    \"database\": \"数据库（可选）\",\n"
+            "    \"tools\": [\"工具1\", \"工具2\", ...]\n"
+            "  }\n"
+            "}\n"
+            "请确保返回的 JSON 字符串符合 JSON Schema 规范。所有内容使用中文。"
         )
         
         user_content = (
             f"以下是项目的目录结构：\n{tree_structure}\n\n"
             f"以下是项目核心文件的内容上下文：\n{code_context}\n\n"
-            f"请为我分析这个项目。"
+            f"请按照指定的 JSON Schema 格式分析这个项目。"
         )
 
         # 利用 OpenAI/DeepSeek 的 json_object 模式或 tools 模式

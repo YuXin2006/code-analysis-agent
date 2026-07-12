@@ -36,7 +36,13 @@ class DataFlowService:
         # --- 任务 2：提取结构化的知识图谱 ---
         graph_prompt = (
             "你是一个静态代码分析专家。请分析代码中的文件、类、函数之间的调用和依赖关系。\n"
-            "抽取最核心的节点和边，并严格按照指定的 JSON 格式返回。不要包含任何 Markdown 标记或多余解释。"
+            "抽取最核心的节点和边，并严格按照以下 JSON Schema 格式返回：\n"
+            "{\n"
+            "  \"nodes\": [{\"id\": \"节点标识\", \"type\": \"file|class|function\"}, ...],\n"
+            "  \"edges\": [{\"source\": \"源节点id\", \"target\": \"目标节点id\", \"relation\": \"imports|calls|defines\"}, ...]\n"
+            "}\n"
+            "注意：edges 必须包含 source、target、relation 三个字段，relation 只能是 imports、calls 或 defines 之一。\n"
+            "不要包含任何 Markdown 标记或多余解释，只返回纯 JSON。"
         )
         
         graph_response = self.llm_client.client.chat.completions.create(

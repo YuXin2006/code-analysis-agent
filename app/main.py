@@ -32,9 +32,12 @@ async def read_root():
     return HTMLResponse(content="前端页面未找到，请先创建 static/index.html")
 
 @app.post("/api/upload")
-async def upload_files(files: list[UploadFile] = File(...), rel_path: str = ""):
+async def upload_files(files: list[UploadFile] = File(...), rel_path: str = "", session_id: str = None):
     """接收上传的文件，保存到临时目录"""
-    session_id = str(uuid.uuid4())
+    # 如果没有提供 session_id，则生成新的
+    if not session_id:
+        session_id = str(uuid.uuid4())
+    
     project_dir = os.path.join(TEMP_DIR, session_id)
     os.makedirs(project_dir, exist_ok=True)
     
