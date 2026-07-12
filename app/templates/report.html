@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Code Analyzer Agent - 项目分析报告</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it@13.0.1/dist/markdown-it.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script src="https://gw.alipayobjects.com/os/lib/antv/g6/4.8.24/dist/g6.min.js"></script>
+    
+    <style>
+        .md-content h1 { font-size: 1.8em; font-weight: 800; color: #1f2937; margin-top: 1.5rem; margin-bottom: 0.75rem; border-bottom: 2px solid #f3f4f6; padding-bottom: 0.4rem; }
+        .md-content h2 { font-size: 1.4em; font-weight: 700; color: #374151; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+        .md-content h3 { font-size: 1.1em; font-weight: 600; color: #4b5563; margin-top: 1rem; }
+        .md-content p { margin-bottom: 0.75rem; color: #4b5563; line-height: 1.7; }
+        .md-content strong { color: #111827; font-weight: 700; background-color: #eff6ff; padding: 0 4px; border-radius: 4px; }
+        .md-content ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1rem; }
+        .md-content li { margin-bottom: 0.35rem; color: #4b5563; }
+        .md-content blockquote { border-left: 4px solid #3b82f6; background-color: #f8fafc; padding: 0.75rem 1rem; margin: 1rem 0; border-radius: 0 8px 8px 0; }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans antialiased text-slate-800">
+
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <header class="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-900 rounded-2xl shadow-xl p-8 mb-8 text-white">
+            <h1 class="text-3xl font-extrabold tracking-tight">项目代码库深度分析报告</h1>
+            <p class="mt-2 text-indigo-200 opacity-90">由 Code-Analyzer-Agent 静态扫描与 LLM 推理自动生成</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 mb-8">
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-2xl shadow-sm p-6 border border-slate-100 sticky top-4">
+                    <h2 class="text-lg font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">📊 项目画像</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">主要语言</span>
+                            <p class="text-lg font-bold text-blue-600">{{ summary.tech_stack.language }}</p>
+                        </div>
+                        <div>
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">核心框架</span>
+                            <p class="text-lg font-bold text-indigo-600">{{ summary.tech_stack.framework }}</p>
+                        </div>
+                        {% if summary.tech_stack.database %}
+                        <div>
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">数据库</span>
+                            <p class="text-base font-semibold text-slate-700">{{ summary.tech_stack.database }}</p>
+                        </div>
+                        {% endif %}
+                        <div>
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">识别工具链</span>
+                            <div class="flex flex-wrap gap-1.5 mt-1">
+                                {% for tool in summary.tech_stack.tools %}
+                                <span class="bg-slate-50 text-slate-700 text-xs px-2 py-0.5 rounded border border-slate-200">{{ tool }}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-3">
+                <div class="bg-white rounded-2xl shadow-sm p-8 border border-slate-100">
+                    <h2 class="text-lg font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">📖 数据流与业务报告</h2>
+                    <div id="raw-markdown" class="hidden">{{ raw_markdown }}</div>
+                    <div id="report-container" class="md-content"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-full bg-white rounded-2xl shadow-sm p-8 border border-slate-100">
+            <h2 class="text-lg font-bold text-slate-900 border-b pb-2 flex items-center gap-2">🕸️ 代码实体知识图谱</h2>
+            <p class="text-xs text-slate-400 mt-1 mb-4">（包含文件、类、函数之间的定义、导入和调用关系。支持鼠标拖拽画布、滚动缩放、拖拽节点）</p>
+            <div id="mountNode" class="w-full bg-slate-50 rounded-xl border border-slate-200 shadow-inner" style="height: 650px;"></div>
+        </div>
+    </div>
+
+    <script>
+        // 1. 完美解析 Markdown 
+        const md = window.markdownit({ html: true, linkify: true });
+        const rawMarkdown = document.getElementById('raw-markdown').innerHTML;
+        
+        // 预处理：把 ```mermaid 转换为预留在页面上的特定结构，供后续 Mermaid.js 解析
+        let formattedMd = rawMarkdown.replace(/```mermaid([\s\S]*?)```/g, function(match, code) {
+            return `<pre class="mermaid" style="display:flex; justify-content:center; background:transparent; margin:1.5rem 0;">${code}</pre>`;
+        });
+        
+        document.getElementById('report-container').innerHTML = md.render(formattedMd);
+
+        // 2. 初始化 Mermaid
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+
+        // 3. 渲染 AntV G6 图谱
+        const graphData = {{ graph_data | tojson | safe }};
+        const colors = { file: '#eff6ff', class: '#e0e7ff', function: '#ecfdf5' };
+        const strokeColors = { file: '#3b82f6', class: '#4f46e5', function: '#10b981' };
+        const textColors = { file: '#1e40af', class: '#3730a3', function: '#065f46' };
+
+        const nodes = graphData.nodes.map(node => ({
+            id: node.id,
+            // 节点内部只展示核心名字（如 file_utils.py），全路径作为 tooltip 或不重叠显示
+            label: node.id.includes('/') ? node.id.split('/').pop() : node.id, 
+            size: node.type === 'file' ? 45 : 35,
+            type: 'circle',
+            style: {
+                fill: colors[node.type] || '#f8fafc',
+                stroke: strokeColors[node.type] || '#cbd5e1',
+                lineWidth: 2,
+            },
+            labelCfg: { 
+                position: 'bottom', // 文字放在节点正下方，避免盖住线
+                offset: 5,
+                style: { fontSize: 11, fill: textColors[node.type] || '#334155', fontWeight: 500 } 
+            }
+        }));
+
+        const edges = graphData.edges.map(edge => ({
+            source: edge.source,
+            target: edge.target,
+            label: edge.relation,
+            labelCfg: { autoRotate: true, style: { fontSize: 9, fill: '#94a3b8', background: { fill: '#ffffff', padding: 2 } } },
+            style: { 
+                endArrow: { path: 'M 0,0 L 6,3 L 6,-3 Z', fill: '#cbd5e1' }, 
+                stroke: '#cbd5e1',
+                lineWidth: 1.5
+            }
+        }));
+
+        const container = document.getElementById('mountNode');
+        const graph = new G6.Graph({
+            container: 'mountNode',
+            width: container.scrollWidth,
+            height: 650,
+            modes: { default: ['drag-canvas', 'zoom-canvas', 'drag-node', 'activate-relations'] },
+            layout: {
+                type: 'gForce', // 升级版引力布局
+                linkDistance: 160, // 增大连线长度，拉开距离
+                nodeStrength: 800, // 增大排斥力，防止节点重叠
+                edgeStrength: 0.3,
+                preventOverlap: true,
+                nodeSize: 50
+            }
+        });
+
+        graph.data({ nodes, edges });
+        graph.render();
+
+        window.onresize = () => {
+            if (!graph || graph.get('destroyed')) return;
+            graph.changeSize(container.scrollWidth, 650);
+        };
+    </script>
+</body>
+</html>

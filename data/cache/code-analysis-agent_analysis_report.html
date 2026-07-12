@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Code Analyzer Agent - 项目分析报告</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it@13.0.1/dist/markdown-it.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script src="https://gw.alipayobjects.com/os/lib/antv/g6/4.8.24/dist/g6.min.js"></script>
+    
+    <style>
+        .md-content h1 { font-size: 1.8em; font-weight: 800; color: #1f2937; margin-top: 1.5rem; margin-bottom: 0.75rem; border-bottom: 2px solid #f3f4f6; padding-bottom: 0.4rem; }
+        .md-content h2 { font-size: 1.4em; font-weight: 700; color: #374151; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+        .md-content h3 { font-size: 1.1em; font-weight: 600; color: #4b5563; margin-top: 1rem; }
+        .md-content p { margin-bottom: 0.75rem; color: #4b5563; line-height: 1.7; }
+        .md-content strong { color: #111827; font-weight: 700; background-color: #eff6ff; padding: 0 4px; border-radius: 4px; }
+        .md-content ul { list-style-type: disc; margin-left: 1.5rem; margin-bottom: 1rem; }
+        .md-content li { margin-bottom: 0.35rem; color: #4b5563; }
+        .md-content blockquote { border-left: 4px solid #3b82f6; background-color: #f8fafc; padding: 0.75rem 1rem; margin: 1rem 0; border-radius: 0 8px 8px 0; }
+    </style>
+</head>
+<body class="bg-slate-50 font-sans antialiased text-slate-800">
+
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <header class="bg-gradient-to-r from-slate-900 via-indigo-950 to-blue-900 rounded-2xl shadow-xl p-8 mb-8 text-white">
+            <h1 class="text-3xl font-extrabold tracking-tight">项目代码库深度分析报告</h1>
+            <p class="mt-2 text-indigo-200 opacity-90">由 Code-Analyzer-Agent 静态扫描与 LLM 推理自动生成</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 mb-8">
+            <div class="lg:col-span-1">
+                <div class="bg-white rounded-2xl shadow-sm p-6 border border-slate-100 sticky top-4">
+                    <h2 class="text-lg font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">📊 项目画像</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">主要语言</span>
+                            <p class="text-lg font-bold text-blue-600">Python</p>
+                        </div>
+                        <div>
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">核心框架</span>
+                            <p class="text-lg font-bold text-indigo-600">FastAPI</p>
+                        </div>
+                        
+                        <div>
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">识别工具链</span>
+                            <div class="flex flex-wrap gap-1.5 mt-1">
+                                
+                                <span class="bg-slate-50 text-slate-700 text-xs px-2 py-0.5 rounded border border-slate-200">Uvicorn</span>
+                                
+                                <span class="bg-slate-50 text-slate-700 text-xs px-2 py-0.5 rounded border border-slate-200">Jinja2</span>
+                                
+                                <span class="bg-slate-50 text-slate-700 text-xs px-2 py-0.5 rounded border border-slate-200">Mermaid.js</span>
+                                
+                                <span class="bg-slate-50 text-slate-700 text-xs px-2 py-0.5 rounded border border-slate-200">AntV G6</span>
+                                
+                                <span class="bg-slate-50 text-slate-700 text-xs px-2 py-0.5 rounded border border-slate-200">Tailwind CSS</span>
+                                
+                                <span class="bg-slate-50 text-slate-700 text-xs px-2 py-0.5 rounded border border-slate-200">Markdown-it</span>
+                                
+                                <span class="bg-slate-50 text-slate-700 text-xs px-2 py-0.5 rounded border border-slate-200">Pydantic</span>
+                                
+                                <span class="bg-slate-50 text-slate-700 text-xs px-2 py-0.5 rounded border border-slate-200">DeepSeek (LLM)</span>
+                                
+                                <span class="bg-slate-50 text-slate-700 text-xs px-2 py-0.5 rounded border border-slate-200">OpenAI Client</span>
+                                
+                                <span class="bg-slate-50 text-slate-700 text-xs px-2 py-0.5 rounded border border-slate-200">LangChain (或类似封装)</span>
+                                
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-3">
+                <div class="bg-white rounded-2xl shadow-sm p-8 border border-slate-100">
+                    <h2 class="text-lg font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">📖 数据流与业务报告</h2>
+                    <div id="raw-markdown" class="hidden">## 项目数据流向描述
+
+本项目是一个基于大模型的代码智能分析工具，整体采用流水线架构，从文件系统读取目标代码库，经过预处理、AI 分析与知识提取，最终生成可视化 HTML 报告。当前版本通过本地脚本直接执行，尚未启用 FastAPI 路由层。
+
+### 1. 入口与配置
+- 用户运行 `tests/test_run02.py` 等入口脚本，指定要分析的项目路径。
+- 脚本导入 `app.core.config.Settings`，自动加载项目根目录下的 `.env` 文件，获取 `LLM_API_KEY`、`LLM_BASE_URL`、`LLM_MODEL` 等配置，供后续 LLM 交互使用。
+
+### 2. 数据摄入：文件扫描与上下文构建
+- **目录树生成**：调用 `app.utils.file_utils.generate_tree_structure(target_path)`，递归遍历目标目录，过滤 `.git`、`node_modules`、`__pycache__` 等黑名单，生成可读的 ASCII 目录树字符串 `tree_str`，帮助 LLM 理解项目骨架。
+- **代码上下文提取**：调用 `app.services.code_parser.CodeParserService.prepare_llm_context(target_path)`，该方法内部通过 `load_project_files` 递归读取所有合规文本文件（如 `.py`、`.js`、`.md`)，将每个文件内容用 `--- 开始文件: 路径 ---` 包裹，拼接成完整字符串 `code_ctx`，供 LLM 深度分析具体代码逻辑。
+
+### 3. 分析推理 – 技术栈与背景识别
+- 实例化 `TechDetectorService`，在其 `execute_analysis` 方法中，复用上述步骤获取 `tree_str` 和 `code_ctx`。
+- 通过 `LLMClient.analyze_project_summary(tree_str, code_ctx)` 调用 OpenAI 兼容接口（默认 DeepSeek v4 pro），要求模型以 `json_object` 模式返回符合 `ProjectSummaryResponse` 模型的结构化 JSON。
+- 结果解析为 Pydantic 对象，包含项目背景描述、核心功能列表、技术栈详情（语言、框架、数据库、工具），用于最终报告的左侧项目画像区域。
+
+### 4. 分析推理 – 数据流与知识图谱生成
+- 实例化 `DataFlowService`，调用 `analyze_data_flow_and_graph(tree_str, code_ctx)`。
+- 该方法向 LLM 发起两次请求：
+  1. **生成 Markdown 报告与 Mermaid 流程图**：系统提示要求模型用自然语言描述项目数据流向，并输出 Mermaid 代码块（`sequenceDiagram` 等）。返回纯文本 `markdown_report`。
+  2. **抽取代码知识图谱**：以 `json_object` 模式要求模型返回符合 `CodeGraphData` 的 JSON（包含 nodes 和 edges），描述文件、类、函数之间的定义、导入、调用关系。返回结果解析为字典 `graph_data`。
+
+### 5. 表现层：可视化报告渲染
+- 实例化 `VisualizerService`，指定模板目录 `app/templates`。
+- 调用 `generate_html_report(summary_dict, flow_graph_result, output_path)`：
+  - 将 `markdown_report` 原样传递给 `report.html` 模板（通过变量 `raw_markdown`）。
+  - 技术栈摘要数据 `summary_dict` 用于左侧卡片。
+  - 知识图谱数据 `graph_data` 以 JSON 注入模板，供前端 AntV G6 渲染。
+- 使用 Jinja2 渲染 `report.html`，生成静态 HTML 文件并保存到 `data/cache/<项目名>_analysis_report.html`。
+
+### 6. 前端交互（浏览器端）
+- 报告中通过 CDN 引入 `markdown-it`、`mermaid.js` 和 `antv g6`。
+- `markdown-it` 将 Markdown 转换为 HTML，同时识别并保留 Mermaid 代码块。
+- `mermaid.js` 将 `<pre class="mermaid">` 中的内容渲染为流程图。
+- `AntV G6` 读取注入的图谱 JSON，渲染可拖拽、缩放的知识图谱网络。
+
+### 7. 未来扩展（路由层）
+`app/routers/analyzer.py` 目前为空，计划通过 FastAPI 的 `POST /api/v1/analyzer/upload` 接收压缩包，使用 `BackgroundTasks` 异步执行上述流水线，并通过 `GET /api/v1/analyzer/task/{task_id}` 追踪进度。当前所有数据流完全在本地脚本中完成。
+
+## 核心业务数据流图
+
+```mermaid
+sequenceDiagram
+    participant User as 用户入口脚本
+    participant Config as Settings
+    participant FU as file_utils
+    participant CP as CodeParserService
+    participant TD as TechDetectorService
+    participant LLM as LLMClient (DeepSeek)
+    participant DF as DataFlowService
+    participant VIS as VisualizerService
+    participant Template as Jinja2 + report.html
+    participant Browser as 浏览器
+
+    User->>Config: 加载 .env 配置 (LLM_API_KEY 等)
+    User->>FU: generate_tree_structure(项目路径)
+    FU-->>User: 返回 tree_str (目录树文本)
+
+    User->>CP: prepare_llm_context(项目路径)
+    CP->>CP: load_project_files (过滤并读取文件)
+    CP-->>User: 返回 code_ctx (格式化代码上下文)
+
+    User->>TD: execute_analysis(项目路径)
+    TD->>FU: generate_tree_structure
+    TD->>CP: prepare_llm_context
+    TD->>LLM: analyze_project_summary(tree_str, code_ctx)
+    Note over LLM: response_format=json_object<br/>返回结构化 JSON
+    LLM-->>TD: ProjectSummaryResponse (技术栈/背景/功能)
+    TD-->>User: summary_result (Pydantic 模型)
+
+    User->>DF: analyze_data_flow_and_graph(tree_str, code_ctx)
+    DF->>LLM: 请求1: 生成 Markdown 报告 + Mermaid 脚本
+    LLM-->>DF: markdown_report (包含序列图代码)
+    DF->>LLM: 请求2: 抽取知识图谱 JSON
+    Note over LLM: response_format=json_object<br/>返回 CodeGraphData
+    LLM-->>DF: graph_data (nodes & edges)
+    DF-->>User: {markdown_report, graph_data}
+
+    User->>VIS: generate_html_report(summary_dict, flow_graph_result, output_path)
+    VIS->>Template: render(summary, raw_markdown, graph_data)
+    Template-->>VIS: 完整 HTML 字符串
+    VIS-->>User: 写入 data/cache/xxx.html
+
+    User->>Browser: 打开 HTML 报告
+    Browser->>Browser: markdown-it 渲染文本
+    Browser->>Browser: mermaid.js 渲染流程图
+    Browser->>Browser: AntV G6 渲染知识图谱
+```</div>
+                    <div id="report-container" class="md-content"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-full bg-white rounded-2xl shadow-sm p-8 border border-slate-100">
+            <h2 class="text-lg font-bold text-slate-900 border-b pb-2 flex items-center gap-2">🕸️ 代码实体知识图谱</h2>
+            <p class="text-xs text-slate-400 mt-1 mb-4">（包含文件、类、函数之间的定义、导入和调用关系。支持鼠标拖拽画布、滚动缩放、拖拽节点）</p>
+            <div id="mountNode" class="w-full bg-slate-50 rounded-xl border border-slate-200 shadow-inner" style="height: 650px;"></div>
+        </div>
+    </div>
+
+    <script>
+        // 1. 完美解析 Markdown 
+        const md = window.markdownit({ html: true, linkify: true });
+        const rawMarkdown = document.getElementById('raw-markdown').innerHTML;
+        
+        // 预处理：把 ```mermaid 转换为预留在页面上的特定结构，供后续 Mermaid.js 解析
+        let formattedMd = rawMarkdown.replace(/```mermaid([\s\S]*?)```/g, function(match, code) {
+            return `<pre class="mermaid" style="display:flex; justify-content:center; background:transparent; margin:1.5rem 0;">${code}</pre>`;
+        });
+        
+        document.getElementById('report-container').innerHTML = md.render(formattedMd);
+
+        // 2. 初始化 Mermaid
+        mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+
+        // 3. 渲染 AntV G6 图谱
+        const graphData = {"edges": [{"relation": "defines", "source": "app/utils/file_utils.py", "target": "should_ignore"}, {"relation": "defines", "source": "app/utils/file_utils.py", "target": "generate_tree_structure"}, {"relation": "defines", "source": "app/services/code_parser.py", "target": "CodeParserService"}, {"relation": "defines", "source": "CodeParserService", "target": "CodeParserService.load_project_files"}, {"relation": "defines", "source": "CodeParserService", "target": "CodeParserService.prepare_llm_context"}, {"relation": "defines", "source": "app/services/llm_client.py", "target": "LLMClient"}, {"relation": "defines", "source": "LLMClient", "target": "LLMClient.analyze_project_summary"}, {"relation": "defines", "source": "app/services/tech_detector.py", "target": "TechDetectorService"}, {"relation": "defines", "source": "TechDetectorService", "target": "TechDetectorService.execute_analysis"}, {"relation": "defines", "source": "app/services/data_flow.py", "target": "DataFlowService"}, {"relation": "defines", "source": "DataFlowService", "target": "DataFlowService.analyze_data_flow_and_graph"}, {"relation": "defines", "source": "app/services/visualizer.py", "target": "VisualizerService"}, {"relation": "defines", "source": "VisualizerService", "target": "VisualizerService.generate_html_report"}, {"relation": "defines", "source": "app/core/config.py", "target": "Settings"}, {"relation": "defines", "source": "app/schemas/analysis.py", "target": "TechStackDetail"}, {"relation": "defines", "source": "app/schemas/analysis.py", "target": "ProjectSummaryResponse"}, {"relation": "defines", "source": "app/schemas/graph.py", "target": "CodeGraphData"}, {"relation": "defines", "source": "app/schemas/graph.py", "target": "GraphNode"}, {"relation": "defines", "source": "app/schemas/graph.py", "target": "GraphEdge"}, {"relation": "defines", "source": "tests/test_run02.py", "target": "run_agent_pipeline"}, {"relation": "imports", "source": "app/services/code_parser.py", "target": "should_ignore"}, {"relation": "imports", "source": "app/services/tech_detector.py", "target": "CodeParserService"}, {"relation": "imports", "source": "app/services/tech_detector.py", "target": "generate_tree_structure"}, {"relation": "imports", "source": "app/services/tech_detector.py", "target": "LLMClient"}, {"relation": "imports", "source": "app/services/tech_detector.py", "target": "ProjectSummaryResponse"}, {"relation": "imports", "source": "app/services/data_flow.py", "target": "LLMClient"}, {"relation": "imports", "source": "app/services/data_flow.py", "target": "CodeGraphData"}, {"relation": "imports", "source": "app/services/data_flow.py", "target": "Settings"}, {"relation": "imports", "source": "app/services/llm_client.py", "target": "Settings"}, {"relation": "imports", "source": "app/services/llm_client.py", "target": "ProjectSummaryResponse"}, {"relation": "imports", "source": "tests/test_run02.py", "target": "Settings"}, {"relation": "imports", "source": "tests/test_run02.py", "target": "generate_tree_structure"}, {"relation": "imports", "source": "tests/test_run02.py", "target": "CodeParserService"}, {"relation": "imports", "source": "tests/test_run02.py", "target": "TechDetectorService"}, {"relation": "imports", "source": "tests/test_run02.py", "target": "DataFlowService"}, {"relation": "imports", "source": "tests/test_run02.py", "target": "VisualizerService"}, {"relation": "calls", "source": "generate_tree_structure", "target": "should_ignore"}, {"relation": "calls", "source": "CodeParserService.load_project_files", "target": "should_ignore"}, {"relation": "calls", "source": "CodeParserService.prepare_llm_context", "target": "CodeParserService.load_project_files"}, {"relation": "calls", "source": "TechDetectorService.execute_analysis", "target": "generate_tree_structure"}, {"relation": "calls", "source": "TechDetectorService.execute_analysis", "target": "CodeParserService.prepare_llm_context"}, {"relation": "calls", "source": "TechDetectorService.execute_analysis", "target": "LLMClient.analyze_project_summary"}, {"relation": "calls", "source": "run_agent_pipeline", "target": "generate_tree_structure"}, {"relation": "calls", "source": "run_agent_pipeline", "target": "CodeParserService.prepare_llm_context"}, {"relation": "calls", "source": "run_agent_pipeline", "target": "LLMClient.analyze_project_summary"}, {"relation": "calls", "source": "run_agent_pipeline", "target": "DataFlowService.analyze_data_flow_and_graph"}, {"relation": "calls", "source": "run_agent_pipeline", "target": "VisualizerService.generate_html_report"}, {"relation": "instantiates", "source": "TechDetectorService", "target": "LLMClient"}, {"relation": "instantiates", "source": "DataFlowService", "target": "LLMClient"}, {"relation": "instantiates", "source": "run_agent_pipeline", "target": "TechDetectorService"}, {"relation": "instantiates", "source": "run_agent_pipeline", "target": "DataFlowService"}, {"relation": "instantiates", "source": "run_agent_pipeline", "target": "VisualizerService"}], "nodes": [{"id": "app/utils/file_utils.py", "type": "file"}, {"id": "app/services/code_parser.py", "type": "file"}, {"id": "app/services/llm_client.py", "type": "file"}, {"id": "app/services/tech_detector.py", "type": "file"}, {"id": "app/services/data_flow.py", "type": "file"}, {"id": "app/services/visualizer.py", "type": "file"}, {"id": "app/core/config.py", "type": "file"}, {"id": "app/schemas/analysis.py", "type": "file"}, {"id": "app/schemas/graph.py", "type": "file"}, {"id": "tests/test_run02.py", "type": "file"}, {"id": "should_ignore", "type": "function"}, {"id": "generate_tree_structure", "type": "function"}, {"id": "CodeParserService", "type": "class"}, {"id": "CodeParserService.load_project_files", "type": "function"}, {"id": "CodeParserService.prepare_llm_context", "type": "function"}, {"id": "LLMClient", "type": "class"}, {"id": "LLMClient.analyze_project_summary", "type": "function"}, {"id": "TechDetectorService", "type": "class"}, {"id": "TechDetectorService.execute_analysis", "type": "function"}, {"id": "DataFlowService", "type": "class"}, {"id": "DataFlowService.analyze_data_flow_and_graph", "type": "function"}, {"id": "VisualizerService", "type": "class"}, {"id": "VisualizerService.generate_html_report", "type": "function"}, {"id": "Settings", "type": "class"}, {"id": "TechStackDetail", "type": "class"}, {"id": "ProjectSummaryResponse", "type": "class"}, {"id": "CodeGraphData", "type": "class"}, {"id": "GraphNode", "type": "class"}, {"id": "GraphEdge", "type": "class"}, {"id": "run_agent_pipeline", "type": "function"}]};
+        const colors = { file: '#eff6ff', class: '#e0e7ff', function: '#ecfdf5' };
+        const strokeColors = { file: '#3b82f6', class: '#4f46e5', function: '#10b981' };
+        const textColors = { file: '#1e40af', class: '#3730a3', function: '#065f46' };
+
+        const nodes = graphData.nodes.map(node => ({
+            id: node.id,
+            // 节点内部只展示核心名字（如 file_utils.py），全路径作为 tooltip 或不重叠显示
+            label: node.id.includes('/') ? node.id.split('/').pop() : node.id, 
+            size: node.type === 'file' ? 45 : 35,
+            type: 'circle',
+            style: {
+                fill: colors[node.type] || '#f8fafc',
+                stroke: strokeColors[node.type] || '#cbd5e1',
+                lineWidth: 2,
+            },
+            labelCfg: { 
+                position: 'bottom', // 文字放在节点正下方，避免盖住线
+                offset: 5,
+                style: { fontSize: 11, fill: textColors[node.type] || '#334155', fontWeight: 500 } 
+            }
+        }));
+
+        const edges = graphData.edges.map(edge => ({
+            source: edge.source,
+            target: edge.target,
+            label: edge.relation,
+            labelCfg: { autoRotate: true, style: { fontSize: 9, fill: '#94a3b8', background: { fill: '#ffffff', padding: 2 } } },
+            style: { 
+                endArrow: { path: 'M 0,0 L 6,3 L 6,-3 Z', fill: '#cbd5e1' }, 
+                stroke: '#cbd5e1',
+                lineWidth: 1.5
+            }
+        }));
+
+        const container = document.getElementById('mountNode');
+        const graph = new G6.Graph({
+            container: 'mountNode',
+            width: container.scrollWidth,
+            height: 650,
+            modes: { default: ['drag-canvas', 'zoom-canvas', 'drag-node', 'activate-relations'] },
+            layout: {
+                type: 'gForce', // 升级版引力布局
+                linkDistance: 160, // 增大连线长度，拉开距离
+                nodeStrength: 800, // 增大排斥力，防止节点重叠
+                edgeStrength: 0.3,
+                preventOverlap: true,
+                nodeSize: 50
+            }
+        });
+
+        graph.data({ nodes, edges });
+        graph.render();
+
+        window.onresize = () => {
+            if (!graph || graph.get('destroyed')) return;
+            graph.changeSize(container.scrollWidth, 650);
+        };
+    </script>
+</body>
+</html>
