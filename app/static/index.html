@@ -1,605 +1,217 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>代码分析助手</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        .drop-zone {
-            transition: all 0.3s ease;
-            border-style: dashed;
-        }
-
-        .drop-zone.dragover {
-            background-color: #dbeafe;
-            border-color: #3b82f6;
-            transform: scale(1.02);
-        }
-
-        .file-item {
-            animation: fadeIn 0.3s ease;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .loading-spinner {
-            border-width: 3px;
-            border-style: solid;
-            border-color: #3b82f6;
-            border-top-color: transparent;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-    </style>
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <style>
+        body { background: radial-gradient(circle at top left, #eef2ff, #f8fafc 45%, #eff6ff); }
+        .panel { background: rgba(255,255,255,.96); border: 1px solid rgba(226,232,240,.9); box-shadow: 0 20px 50px rgba(15,23,42,.07); }
+        .drop-zone { transition: .25s ease; border-style: dashed; }
+        .drop-zone.dragover { background:#eef2ff; border-color:#4f46e5; transform:translateY(-2px); }
+        .spinner { border:3px solid #c7d2fe; border-top-color:#4f46e5; border-radius:50%; animation:spin .8s linear infinite; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+        .markdown-content h2 { font-size:1.15rem; font-weight:750; color:#172554; margin:1.4rem 0 .55rem; }
+        .markdown-content h3 { font-size:1rem; font-weight:700; color:#334155; margin:1rem 0 .35rem; }
+        .markdown-content p,.markdown-content li { color:#475569; line-height:1.75; }
+        .markdown-content ul { list-style:disc; padding-left:1.25rem; margin:.45rem 0; }
+        .mermaid-host svg { width:100%; height:auto; max-height:560px; }
+        pre { scrollbar-width:thin; }
+    </style>
     <script>
-        mermaid.initialize({ startOnLoad: false });
+        mermaid.initialize({ startOnLoad:false, theme:'neutral', securityLevel:'strict', flowchart:{ useMaxWidth:true, curve:'basis' } });
     </script>
 </head>
-
-<body class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-    <!-- 头部 -->
-    <header class="bg-white shadow-sm">
-        <div class="max-w-6xl mx-auto px-4 py-4">
-            <div class="flex items-center gap-3">
-                <div
-                    class="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
-                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
-                        </path>
-                    </svg>
-                </div>
-                <h1 class="text-xl font-bold text-gray-800">代码分析助手</h1>
-            </div>
+<body class="min-h-screen text-slate-800">
+    <header class="border-b border-slate-200/80 bg-white/80 backdrop-blur">
+        <div class="max-w-6xl mx-auto px-5 py-4 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 text-white grid place-items-center font-bold">CA</div>
+            <div><h1 class="text-lg font-bold">代码分析助手</h1><p class="text-xs text-slate-500">结构理解 · 技术证据 · 数据流可视化</p></div>
         </div>
     </header>
 
-    <main class="max-w-6xl mx-auto px-4 py-8">
-        <!-- 拖拽区域 -->
-        <div class="bg-white rounded-2xl shadow-lg p-8 mb-8">
-            <div id="dropZone" class="drop-zone border-2 border-gray-300 rounded-xl p-12 text-center cursor-pointer"
-                ondragover="event.preventDefault(); this.classList.add('dragover')"
-                ondragleave="this.classList.remove('dragover')"
-                ondrop="handleDrop(event); this.classList.remove('dragover')"
-                onclick="document.getElementById('fileInput').click()">
-                <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <svg class="w-10 h-10 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12">
-                        </path>
-                    </svg>
-                </div>
-                <p class="text-lg font-medium text-gray-700 mb-2">拖拽文件夹到这里</p>
-                <p class="text-gray-500">或者点击选择文件</p>
-                <input type="file" id="fileInput" class="hidden" multiple directory webkitdirectory
-                    onchange="handleFileSelect(event)">
+    <main class="max-w-6xl mx-auto px-5 py-8">
+        <section class="panel rounded-3xl p-7 mb-6">
+            <div id="dropZone" class="drop-zone border-2 border-slate-300 rounded-2xl px-6 py-12 text-center cursor-pointer"
+                 ondragover="event.preventDefault();this.classList.add('dragover')"
+                 ondragleave="this.classList.remove('dragover')"
+                 ondrop="handleDrop(event);this.classList.remove('dragover')"
+                 onclick="document.getElementById('fileInput').click()">
+                <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-indigo-50 grid place-items-center text-3xl">⌁</div>
+                <p class="font-semibold text-slate-700">拖拽项目文件夹到这里</p>
+                <p class="text-sm text-slate-500 mt-1">或点击选择完整目录</p>
+                <input id="fileInput" type="file" class="hidden" multiple directory webkitdirectory onchange="handleFileSelect(event)">
             </div>
+            <div id="fileList" class="hidden mt-5">
+                <div class="flex items-center justify-between mb-3"><h2 class="font-semibold">已选择 <span id="fileCount">0</span> 个文件</h2><button onclick="clearFiles()" class="text-sm text-rose-600">清空</button></div>
+                <div id="filesContainer" class="max-h-52 overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100"></div>
+            </div>
+        </section>
+
+        <div class="grid sm:grid-cols-2 gap-4 mb-6">
+            <button id="analyzeBtn" onclick="startAnalysis('summary')" disabled class="rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 text-white py-3.5 font-semibold shadow-lg disabled:opacity-40">生成技术与架构报告</button>
+            <button id="flowBtn" onclick="startAnalysis('flow')" disabled class="rounded-xl bg-slate-900 text-white py-3.5 font-semibold shadow-lg disabled:opacity-40">生成数据流与关系图</button>
         </div>
 
-        <!-- 文件列表 -->
-        <div id="fileList" class="bg-white rounded-2xl shadow-lg p-6 mb-8 hidden">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">已选择文件</h2>
-            <div id="filesContainer" class="space-y-2 max-h-60 overflow-y-auto"></div>
-            <button id="clearBtn"
-                class="mt-4 px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                onclick="clearFiles()">
-                清空选择
-            </button>
-        </div>
+        <section id="loading" class="panel rounded-2xl p-10 text-center hidden"><div class="spinner w-11 h-11 mx-auto mb-4"></div><p class="font-medium">正在阅读目录与核心代码…</p><p class="text-sm text-slate-500 mt-1">大型项目可能需要几分钟</p></section>
 
-        <!-- 分析按钮 -->
-        <div class="flex gap-4 mb-8">
-            <button id="analyzeBtn"
-                class="flex-1 bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-3 px-6 rounded-xl font-medium hover:from-blue-600 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                onclick="startAnalysis('summary')" disabled>
-                🔍 生成技术栈分析报告
-            </button>
-            <button id="flowBtn"
-                class="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 px-6 rounded-xl font-medium hover:from-green-600 hover:to-emerald-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                onclick="startAnalysis('flow')" disabled>
-                📊 生成数据流分析报告
-            </button>
-        </div>
-
-        <!-- 加载状态 -->
-        <div id="loading" class="bg-white rounded-2xl shadow-lg p-8 text-center hidden">
-            <div class="loading-spinner w-12 h-12 mx-auto mb-4"></div>
-            <p class="text-gray-700">正在分析代码，请稍候...</p>
-            <p class="text-sm text-gray-500 mt-2">这可能需要几分钟时间</p>
-        </div>
-
-        <!-- 分析结果 -->
-        <div id="result" class="bg-white rounded-2xl shadow-lg p-8 hidden">
-            <div id="summaryResult" class="hidden">
-                <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                    <svg class="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
-                        </path>
-                    </svg>
-                    技术栈分析报告
-                </h2>
-
-                <div class="grid md:grid-cols-2 gap-6">
-                    <!-- 项目背景 -->
-                    <div class="bg-blue-50 rounded-xl p-4">
-                        <h3 class="text-sm font-semibold text-blue-800 mb-2">📝 项目背景</h3>
-                        <p id="resultBackground" class="text-gray-700 text-sm"></p>
-                    </div>
-
-                    <!-- 核心功能 -->
-                    <div class="bg-indigo-50 rounded-xl p-4">
-                        <h3 class="text-sm font-semibold text-indigo-800 mb-2">🎯 核心功能</h3>
-                        <ul id="resultFeatures" class="text-gray-700 text-sm list-disc list-inside space-y-1"></ul>
-                    </div>
-
-                    <!-- 技术栈 -->
-                    <div class="bg-green-50 rounded-xl p-4">
-                        <h3 class="text-sm font-semibold text-green-800 mb-2">🛠️ 技术栈</h3>
-                        <div class="space-y-2 text-sm">
-                            <p><span class="font-medium">语言：</span><span id="resultLanguage"
-                                    class="text-gray-700"></span></p>
-                            <p><span class="font-medium">框架：</span><span id="resultFramework"
-                                    class="text-gray-700"></span></p>
-                            <p><span class="font-medium">数据库：</span><span id="resultDatabase"
-                                    class="text-gray-700"></span></p>
-                            <p><span class="font-medium">工具：</span><span id="resultTools" class="text-gray-700"></span>
-                            </p>
-                        </div>
-                    </div>
-
-                    <!-- 目录结构 -->
-                    <div class="bg-orange-50 rounded-xl p-4">
-                        <h3 class="text-sm font-semibold text-orange-800 mb-2">📁 目录结构</h3>
-                        <pre id="resultTree" class="text-gray-700 text-xs overflow-x-auto"></pre>
-                    </div>
+        <section id="result" class="hidden space-y-6">
+            <div id="summaryResult" class="hidden space-y-6">
+                <div class="panel rounded-3xl p-7"><p class="text-xs font-bold tracking-widest text-indigo-600 uppercase">Architecture Brief</p><h2 class="text-2xl font-bold mt-2">项目技术与架构分析</h2><p id="resultBackground" class="text-slate-600 leading-7 mt-4"></p></div>
+                <div class="grid lg:grid-cols-3 gap-5">
+                    <article class="panel rounded-2xl p-5 lg:col-span-2"><h3 class="font-bold mb-3">架构概览</h3><p id="resultArchitecture" class="text-sm leading-7 text-slate-600"></p></article>
+                    <article class="panel rounded-2xl p-5"><h3 class="font-bold mb-3">核心功能</h3><ul id="resultFeatures" class="list-disc pl-5 text-sm text-slate-600 space-y-1.5"></ul></article>
                 </div>
+                <div class="panel rounded-2xl p-5"><h3 class="font-bold mb-4">技术栈画像</h3><div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm"><div class="rounded-xl bg-blue-50 p-3"><span class="text-blue-600 text-xs">语言</span><p id="resultLanguage" class="font-semibold mt-1"></p></div><div class="rounded-xl bg-indigo-50 p-3"><span class="text-indigo-600 text-xs">框架</span><p id="resultFramework" class="font-semibold mt-1"></p></div><div class="rounded-xl bg-emerald-50 p-3"><span class="text-emerald-700 text-xs">数据存储</span><p id="resultDatabase" class="font-semibold mt-1"></p></div><div class="rounded-xl bg-slate-100 p-3"><span class="text-slate-500 text-xs">工具链</span><p id="resultTools" class="font-semibold mt-1"></p></div></div></div>
+                <div class="grid lg:grid-cols-2 gap-5">
+                    <article class="panel rounded-2xl p-5"><h3 class="font-bold mb-3">核心目录职责</h3><div id="resultModules" class="space-y-3"></div></article>
+                    <article class="panel rounded-2xl p-5"><h3 class="font-bold mb-3">原始目录树</h3><pre id="resultTree" class="text-xs text-slate-600 bg-slate-50 rounded-xl p-4 max-h-[500px] overflow-auto"></pre></article>
+                </div>
+                <div class="grid lg:grid-cols-2 gap-5"><article class="panel rounded-2xl p-5"><h3 class="font-bold mb-3">入口、配置与数据</h3><ul id="resultEntries" class="list-disc pl-5 text-sm text-slate-600 space-y-2"></ul></article><article class="panel rounded-2xl p-5"><h3 class="font-bold mb-3">风险与注意事项</h3><ul id="resultRisks" class="list-disc pl-5 text-sm text-slate-600 space-y-2"></ul></article></div>
+                <article class="panel rounded-2xl p-5"><h3 class="font-bold mb-4">技术判断依据</h3><div id="resultEvidence" class="grid md:grid-cols-2 gap-3"></div></article>
             </div>
 
-            <div id="flowResult" class="hidden">
-                <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                    <svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                    </svg>
-                    数据流分析报告
-                </h2>
-
-                <!-- Mermaid 图表渲染 -->
-                <div class="mb-6">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-3">📊 核心业务数据流图</h3>
-                    <div id="mermaidContainer" class="bg-gray-50 p-4 rounded-xl"></div>
-                </div>
-
-                <!-- Markdown 报告 -->
-                <div class="prose prose-sm max-w-none mb-6">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-3">📝 数据流分析文本</h3>
-                    <div id="resultMarkdown" class="markdown-content"></div>
-                </div>
-
-                <!-- 知识图谱可视化 -->
-                <div class="mb-6">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-3">🔗 知识图谱</h3>
-                    <div id="graphContainer" class="bg-gray-50 p-4 rounded-xl"></div>
-                    <div id="graphLegend" class="mt-3 flex flex-wrap gap-4 text-sm"></div>
-                </div>
-
-                <!-- 原始 JSON 数据（折叠） -->
-                <div class="border-t pt-4">
-                    <button id="toggleGraphJson" class="text-sm text-blue-600 hover:text-blue-800 mb-2"
-                        onclick="toggleGraphJson()">
-                        🔍 查看原始 JSON 数据
-                    </button>
-                    <pre id="resultGraph" class="text-xs text-gray-600 overflow-x-auto hidden"></pre>
-                </div>
-
-                <button id="resetBtn"
-                    class="mt-6 px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                    onclick="resetPage()">
-                    🔄 重新分析
-                </button>
+            <div id="flowResult" class="hidden space-y-6">
+                <div class="panel rounded-3xl p-7"><p class="text-xs font-bold tracking-widest text-emerald-600 uppercase">System Flow</p><h2 class="text-2xl font-bold mt-2">数据流与代码关系</h2></div>
+                <article class="panel rounded-2xl p-5"><h3 class="font-bold mb-4">核心业务数据流</h3><div id="mermaidContainer" class="mermaid-host bg-slate-50 rounded-xl p-5 overflow-x-auto"></div></article>
+                <article class="panel rounded-2xl p-5"><h3 class="font-bold mb-3">数据流说明</h3><div id="resultMarkdown" class="markdown-content"></div></article>
+                <article class="panel rounded-2xl p-5"><h3 class="font-bold mb-1">核心代码关系</h3><p class="text-xs text-slate-500 mb-4">仅展示关键文件、类和函数，避免图像过密。</p><div id="graphContainer" class="mermaid-host bg-slate-50 rounded-xl p-5 overflow-x-auto"></div><div id="graphLegend" class="flex flex-wrap gap-4 text-xs text-slate-500 mt-3"></div></article>
+                <article class="panel rounded-2xl p-5"><button id="toggleGraphJson" onclick="toggleGraphJson()" class="text-sm text-indigo-600">查看原始关系 JSON</button><pre id="resultGraph" class="hidden mt-3 text-xs bg-slate-950 text-slate-200 p-4 rounded-xl overflow-auto"></pre></article>
             </div>
-
-            <button id="resetBtn"
-                class="mt-6 px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                onclick="resetPage()">
-                🔄 重新分析
-            </button>
-        </div>
+            <button onclick="resetPage()" class="px-5 py-2.5 rounded-xl border border-slate-300 bg-white text-sm font-medium">重新分析</button>
+        </section>
     </main>
 
     <script>
         let selectedFiles = [];
         let sessionId = null;
 
-        // 处理拖拽
+        const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[char]));
+        const safeLabel = (value, max=28) => String(value || '').replace(/["'`\[\]{}()<>|\\]/g,'').replace(/\s+/g,' ').trim().slice(0,max) || '未命名';
+
         async function handleDrop(event) {
             event.preventDefault();
-            const items = event.dataTransfer.items;
-            await processItems(items, "");
+            for (const item of event.dataTransfer.items) {
+                const entry = item.webkitGetAsEntry?.();
+                if (entry?.isDirectory) await processDirectory(entry, '');
+                else { const file = item.getAsFile(); if (file) selectedFiles.push({file, path:''}); }
+            }
             updateFileList();
         }
 
-        // 处理文件选择
         async function handleFileSelect(event) {
-            const files = event.target.files;
-            await processFiles(files, "");
+            for (const file of event.target.files) {
+                const relative = (file.webkitRelativePath || '').replace(/\\/g,'/');
+                selectedFiles.push({file, path:relative.includes('/') ? relative.split('/').slice(0,-1).join('/') : ''});
+            }
             updateFileList();
         }
 
-        // 处理拖拽项
-        async function processItems(items, rootPath) {
-            for (let item of items) {
-                if (item.kind === 'file') {
-                    const file = item.getAsFile();
-                    if (file) {
-                        selectedFiles.push({ file, path: rootPath });
-                    }
-                } else if (item.kind === 'directory') {
-                    const entry = item.webkitGetAsEntry();
-                    if (entry) {
-                        await processDirectory(entry, rootPath);
-                    }
-                }
+        async function processDirectory(entry, parent) {
+            const current = parent ? `${parent}/${entry.name}` : entry.name;
+            const reader = entry.createReader(), entries = [];
+            while (true) { const batch = await new Promise((ok,fail)=>reader.readEntries(ok,fail)); if (!batch.length) break; entries.push(...batch); }
+            for (const child of entries) {
+                if (child.isDirectory) await processDirectory(child,current);
+                else { const file = await new Promise((ok,fail)=>child.file(ok,fail)); selectedFiles.push({file,path:current}); }
             }
         }
 
-        // 处理文件列表
-        async function processFiles(files, rootPath) {
-            for (let i = 0; i < files.length; i++) {
-                selectedFiles.push({ file: files[i], path: rootPath });
-            }
-        }
-
-        // 处理目录
-        async function processDirectory(entry, rootPath) {
-            return new Promise((resolve) => {
-                const dirReader = entry.createReader();
-                dirReader.readEntries(async (entries) => {
-                    for (let entryItem of entries) {
-                        if (entryItem.isFile) {
-                            entryItem.file((file) => {
-                                const filePath = rootPath ? `${rootPath}/${entryItem.name}` : entryItem.name;
-                                selectedFiles.push({ file, path: filePath });
-                            });
-                        } else if (entryItem.isDirectory) {
-                            const newPath = rootPath ? `${rootPath}/${entryItem.name}` : entryItem.name;
-                            await processDirectory(entryItem, newPath);
-                        }
-                    }
-                    resolve();
-                });
-            });
-        }
-
-        // 更新文件列表显示
         function updateFileList() {
-            const fileList = document.getElementById('fileList');
-            const container = document.getElementById('filesContainer');
-            const analyzeBtn = document.getElementById('analyzeBtn');
-            const flowBtn = document.getElementById('flowBtn');
-
-            if (selectedFiles.length > 0) {
-                fileList.classList.remove('hidden');
-                analyzeBtn.disabled = false;
-                flowBtn.disabled = false;
-
-                container.innerHTML = selectedFiles.map((item, index) => `
-                    <div class="file-item flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div class="flex items-center gap-2">
-                            <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                            </svg>
-                            <span class="text-sm text-gray-700">${item.path ? `${item.path}/` : ''}${item.file.name}</span>
-                        </div>
-                        <span class="text-xs text-gray-400">${formatFileSize(item.file.size)}</span>
-                    </div>
-                `).join('');
-            } else {
-                fileList.classList.add('hidden');
-                analyzeBtn.disabled = true;
-                flowBtn.disabled = true;
-            }
+            const hasFiles = selectedFiles.length > 0;
+            document.getElementById('fileList').classList.toggle('hidden',!hasFiles);
+            document.getElementById('analyzeBtn').disabled = !hasFiles;
+            document.getElementById('flowBtn').disabled = !hasFiles;
+            document.getElementById('fileCount').textContent = selectedFiles.length;
+            document.getElementById('filesContainer').innerHTML = selectedFiles.map(item => `<div class="flex justify-between gap-3 px-3 py-2 text-xs"><span class="truncate">${escapeHtml(item.path ? `${item.path}/${item.file.name}` : item.file.name)}</span><span class="text-slate-400 shrink-0">${formatSize(item.file.size)}</span></div>`).join('');
         }
 
-        // 格式化文件大小
-        function formatFileSize(bytes) {
-            if (bytes < 1024) return bytes + ' B';
-            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-        }
+        function formatSize(bytes) { return bytes < 1024 ? `${bytes} B` : bytes < 1048576 ? `${(bytes/1024).toFixed(1)} KB` : `${(bytes/1048576).toFixed(1)} MB`; }
+        function clearFiles() { selectedFiles=[]; sessionId=null; document.getElementById('fileInput').value=''; updateFileList(); }
 
-        // 清空文件选择
-        function clearFiles() {
-            selectedFiles = [];
-            sessionId = null;
-            updateFileList();
-        }
-
-        // 开始分析
         async function startAnalysis(type) {
-            if (selectedFiles.length === 0) return;
-
-            // 显示加载状态
-            document.getElementById('loading').classList.remove('hidden');
-            document.getElementById('result').classList.add('hidden');
-            document.getElementById('analyzeBtn').disabled = true;
-            document.getElementById('flowBtn').disabled = true;
-
+            if (!selectedFiles.length) return;
+            document.getElementById('loading').classList.remove('hidden'); document.getElementById('result').classList.add('hidden');
+            document.getElementById('analyzeBtn').disabled=true; document.getElementById('flowBtn').disabled=true;
             try {
-                // 分批次上传文件
-                const batchSize = 20;
-                for (let i = 0; i < selectedFiles.length; i += batchSize) {
-                    const batch = selectedFiles.slice(i, i + batchSize);
-                    const formData = new FormData();
-
-                    batch.forEach(item => {
-                        formData.append('files', item.file, item.file.name);
-                        formData.append('rel_path', item.path);
-                    });
-
-                    // 如果已经有 sessionId，传递给后端以保持一致
-                    if (sessionId) {
-                        formData.append('session_id', sessionId);
-                    }
-
-                    const response = await fetch('/api/upload', {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    const result = await response.json();
-                    sessionId = result.session_id;
+                sessionId = null;
+                for (let i=0;i<selectedFiles.length;i+=20) {
+                    const form = new FormData();
+                    selectedFiles.slice(i,i+20).forEach(item => { form.append('files',item.file,item.file.name); form.append('rel_paths',item.path || ''); });
+                    if (sessionId) form.append('session_id',sessionId);
+                    const response = await fetch('/api/upload',{method:'POST',body:form});
+                    if (!response.ok) throw new Error((await response.json()).detail || '上传失败');
+                    sessionId = (await response.json()).session_id;
                 }
-
-                // 执行分析
-                const analysisResponse = await fetch(`/api/analyze/${sessionId}?analysis_type=${type}`, {
-                    method: 'POST'
-                });
-
-                if (!analysisResponse.ok) {
-                    throw new Error('分析失败');
-                }
-
-                const analysisResult = await analysisResponse.json();
-                displayResult(analysisResult, type);
-
-            } catch (error) {
-                alert('分析过程中发生错误: ' + error.message);
-            } finally {
-                document.getElementById('loading').classList.add('hidden');
-                document.getElementById('analyzeBtn').disabled = false;
-                document.getElementById('flowBtn').disabled = false;
-            }
+                const response = await fetch(`/api/analyze/${sessionId}?analysis_type=${type}`,{method:'POST'});
+                if (!response.ok) { const body=await response.json(); throw new Error(body.detail || '分析失败'); }
+                await displayResult(await response.json(),type);
+            } catch (error) { alert(`分析过程中发生错误：${error.message}`); }
+            finally { document.getElementById('loading').classList.add('hidden'); document.getElementById('analyzeBtn').disabled=false; document.getElementById('flowBtn').disabled=false; }
         }
 
-        // 显示分析结果
-        function displayResult(result, type) {
-            document.getElementById('result').classList.remove('hidden');
-            document.getElementById('summaryResult').classList.add('hidden');
-            document.getElementById('flowResult').classList.add('hidden');
-
-            if (type === 'summary') {
-                document.getElementById('summaryResult').classList.remove('hidden');
-                document.getElementById('resultBackground').textContent = result.background;
-                document.getElementById('resultFeatures').innerHTML = result.core_features.map(f => `<li>${f}</li>`).join('');
-                document.getElementById('resultLanguage').textContent = result.tech_stack.language;
-                document.getElementById('resultFramework').textContent = result.tech_stack.framework;
-                document.getElementById('resultDatabase').textContent = result.tech_stack.database || '未识别';
-                document.getElementById('resultTools').textContent = result.tech_stack.tools.join(', ') || '无';
-                document.getElementById('resultTree').textContent = result.directory_tree;
-            } else if (type === 'flow') {
-                document.getElementById('flowResult').classList.remove('hidden');
-
-                // 渲染 Mermaid 数据流图
-                renderMermaid(result.markdown_report);
-
-                // 渲染 Markdown（移除 mermaid 代码块）
-                const cleanMarkdown = result.markdown_report.replace(/```mermaid[\s\S]*?```/g, '');
-                document.getElementById('resultMarkdown').innerHTML = parseMarkdown(cleanMarkdown);
-
-                // 渲染知识图谱（图形化）
-                renderGraph(result.graph_data);
-
-                // 设置原始 JSON（供查看）
-                document.getElementById('resultGraph').textContent = JSON.stringify(result.graph_data, null, 2);
-            }
-        }
-
-        // 简单的 Markdown 解析
+        function renderList(id,items) { document.getElementById(id).innerHTML=(items||[]).map(x=>`<li>${escapeHtml(x)}</li>`).join('') || '<li>未识别</li>'; }
         function parseMarkdown(text) {
-            return text
-                .replace(/### (.*)/g, '<h3 class="text-lg font-semibold text-gray-800 mt-4 mb-2">$1</h3>')
-                .replace(/## (.*)/g, '<h2 class="text-xl font-bold text-gray-800 mt-6 mb-3">$1</h2>')
-                .replace(/\*\*(.*)\*\*/g, '<strong class="font-semibold">$1</strong>')
-                .replace(/\n/g, '<br>')
-                .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre class="bg-gray-100 p-3 rounded-lg text-sm overflow-x-auto"><code>$2</code></pre>')
-                .replace(/`([^`]+)`/g, '<code class="bg-gray-100 px-1.5 py-0.5 rounded text-sm">$1</code>');
+            return escapeHtml(text).replace(/^### (.*)$/gm,'<h3>$1</h3>').replace(/^## (.*)$/gm,'<h2>$1</h2>')
+                .replace(/^[-*] (.*)$/gm,'<li>$1</li>').replace(/(<li>.*<\/li>\n?)+/g,'<ul>$&</ul>')
+                .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/`([^`]+)`/g,'<code class="bg-slate-100 px-1 rounded">$1</code>')
+                .replace(/^(?!<h|<ul|<li|<\/)(.+)$/gm,'<p>$1</p>');
         }
 
-        // 重置页面
-        function resetPage() {
-            clearFiles();
-            document.getElementById('result').classList.add('hidden');
-        }
-        // 渲染 Mermaid 图表
-        function renderMermaid(markdownContent) {
-            const container = document.getElementById('mermaidContainer');
-
-            // 尝试匹配不同格式的 mermaid 代码块
-            const mermaidMatch = markdownContent.match(/```mermaid\s*([\s\S]*?)```/i);
-
-            if (mermaidMatch) {
-                const chartId = 'mermaid-chart-' + Date.now();
-                container.innerHTML = `<div id="${chartId}" class="mermaid">${mermaidMatch[1].trim()}</div>`;
-
-                // 使用 mermaid.init() 确保渲染
-                try {
-                    mermaid.init();
-                } catch (e) {
-                    console.error('Mermaid 渲染错误:', e);
-                    container.innerHTML = '<p class="text-red-500 text-center py-8">流程图渲染失败: ' + e.message + '</p>';
-                }
-            } else {
-                container.innerHTML = '<div class="bg-gray-50 p-8 rounded-xl"><p class="text-gray-500 text-center">📊 正在生成数据流图...</p></div>';
-            }
+        async function renderMermaidCode(containerId,code) {
+            const container=document.getElementById(containerId);
+            if (!code) { container.innerHTML='<p class="text-center text-slate-500 py-8">暂无可渲染数据</p>'; return; }
+            try { const {svg,bindFunctions}=await mermaid.render(`m-${containerId}-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,code); container.innerHTML=svg; if(bindFunctions) bindFunctions(container); }
+            catch(error) { console.error(error); container.innerHTML=`<p class="text-center text-rose-600 py-8">图表渲染失败：${escapeHtml(error.message)}</p>`; }
         }
 
-        // 渲染知识图谱
-        function renderGraph(graphData) {
-            const container = document.getElementById('graphContainer');
-            const legend = document.getElementById('graphLegend');
-
-            // 清空容器
-            container.innerHTML = '';
-
-            // 生成 Mermaid graph 代码
-            let mermaidCode = 'graph TD\n';
-
-            // 添加节点（使用安全的ID）
-            const nodeMap = {};
-            const usedIds = new Set();
-            graphData.nodes.forEach((node, index) => {
-                // 确保节点 ID 唯一且只包含字母数字和下划线
-                let safeId = 'n' + index;
-                while (usedIds.has(safeId)) {
-                    safeId = 'n' + index + '_' + Math.random().toString(36).substr(2, 5);
-                }
-                usedIds.add(safeId);
-                nodeMap[node.id] = safeId;
-                
-                // 清理节点名称：只保留字母、数字、中文、空格和常见标点
-                let displayName = node.id
-                    .replace(/["'\\]/g, '')           // 移除引号和反斜杠
-                    .replace(/[\[\]\{\}\(\)<>]/g, '')  // 移除所有括号和尖括号
-                    .replace(/[&|]/g, '')            // 移除 & 和 |
-                    .replace(/\n/g, ' ')             // 换行符替换为空格
-                    .replace(/\s+/g, ' ')            // 多个空格合并为一个
-                    .trim();
-                
-                // 如果名称为空，使用默认名称
-                if (!displayName) {
-                    displayName = 'Node' + index;
-                }
-                
-                // 使用 subgraph 语法来安全地包含特殊字符
-                mermaidCode += `    subgraph ${safeId}["${displayName}"]\n    end\n`;
-                mermaidCode += `    class ${safeId} ${node.type}\n`;
+        function graphCode(data,flow=false) {
+            if (!data?.nodes?.length) return '';
+            const prefix=flow?'f':'n', map=Object.fromEntries(data.nodes.map((node,i)=>[node.id,`${prefix}${i}`])), lines=['flowchart TD'];
+            const flowStyleMap={
+                input:'fill:#E0F2FE,stroke:#0284C7,color:#0C4A6E',
+                process:'fill:#EEF2FF,stroke:#4F46E5,color:#312E81',
+                storage:'fill:#ECFDF5,stroke:#059669,color:#064E3B',
+                output:'fill:#FFF7ED,stroke:#EA580C,color:#7C2D12',
+                external:'fill:#F8FAFC,stroke:#64748B,color:#334155'
+            };
+            const codeStyleMap={
+                file:'fill:#DBEAFE,stroke:#2563EB,color:#1E3A8A',
+                class:'fill:#DCFCE7,stroke:#16A34A,color:#14532D',
+                function:'fill:#F3E8FF,stroke:#9333EA,color:#581C87'
+            };
+            data.nodes.forEach((node,i)=>{
+                lines.push(`    ${prefix}${i}["${safeLabel(node.label || node.id,flow?18:24)}"]`);
+                const nodeStyle=flow
+                    ? (flowStyleMap[node.type] || flowStyleMap.process)
+                    : (codeStyleMap[node.type] || codeStyleMap.file);
+                lines.push(`    style ${prefix}${i} ${nodeStyle}`);
             });
-
-            // 添加关系连线
-            if (graphData.edges && graphData.edges.length > 0) {
-                graphData.edges.forEach((edge, edgeIndex) => {
-                    const sourceId = nodeMap[edge.source] || 'n0';
-                    const targetId = nodeMap[edge.target] || 'n0';
-                    
-                    // 清理关系标签：只保留字母、数字、中文和空格
-                    let relation = (edge.relation || '')
-                        .replace(/["'\\]/g, '')
-                        .replace(/[\[\]\{\}\(\)<>]/g, '')
-                        .replace(/[&|]/g, '')
-                        .replace(/\n/g, ' ')
-                        .replace(/\s+/g, ' ')
-                        .trim();
-                    
-                    // 如果关系标签为空，使用默认标签
-                    if (!relation) {
-                        relation = 'relates';
-                    }
-                    
-                    mermaidCode += `    ${sourceId} -->|${relation}| ${targetId}\n`;
-                });
-            }
-
-            // 添加样式定义
-            mermaidCode += `
-    classDef file fill:#3B82F6,color:#fff,stroke:#1D4ED8,stroke-width:2px
-    classDef class fill:#22C55E,color:#fff,stroke:#16A34A,stroke-width:2px
-    classDef function fill:#A855F7,color:#fff,stroke:#9333EA,stroke-width:2px
-    `;
-
-            // 渲染图表
-            const graphId = 'graph-' + Date.now();
-            container.innerHTML = `<div id="${graphId}" class="mermaid">${mermaidCode}</div>`;
-
-            // 使用 mermaid.run() 渲染
-            try {
-                mermaid.run({
-                    nodes: [document.getElementById(graphId)]
-                }).catch(e => {
-                    console.error('Mermaid 渲染错误:', e);
-                    container.innerHTML = '<p class="text-red-500 text-center py-8">图表渲染失败: ' + (e.message || '未知错误') + '</p>';
-                });
-            } catch (e) {
-                console.error('Mermaid 初始化错误:', e);
-                container.innerHTML = '<p class="text-red-500 text-center py-8">图表渲染失败: ' + (e.message || '未知错误') + '</p>';
-            }
-
-            // 更新图例
-            legend.innerHTML = `
-        <span class="flex items-center gap-1">
-            <span class="w-3 h-3 rounded bg-blue-500"></span> file
-        </span>
-        <span class="flex items-center gap-1">
-            <span class="w-3 h-3 rounded bg-green-500"></span> class
-        </span>
-        <span class="flex items-center gap-1">
-            <span class="w-3 h-3 rounded bg-purple-500"></span> function
-        </span>
-    `;
-        }
-        // 切换 JSON 显示
-        function toggleGraphJson() {
-            const pre = document.getElementById('resultGraph');
-            const btn = document.getElementById('toggleGraphJson');
-            pre.classList.toggle('hidden');
-            btn.textContent = pre.classList.contains('hidden') ? '🔍 查看原始 JSON' : '🔼 隐藏 JSON';
+            (data.edges||[]).forEach(edge=>{ if(map[edge.source]===undefined||map[edge.target]===undefined)return; const label=safeLabel(edge.label||edge.relation,12); lines.push(`    ${map[edge.source]} -->|${label}| ${map[edge.target]}`); });
+            return lines.join('\n');
         }
 
-        // 修改 displayResult 函数
-        function displayResult(result, type) {
-            document.getElementById('result').classList.remove('hidden');
-            document.getElementById('summaryResult').classList.add('hidden');
-            document.getElementById('flowResult').classList.add('hidden');
-
-            if (type === 'summary') {
+        async function displayResult(result,type) {
+            document.getElementById('result').classList.remove('hidden'); document.getElementById('summaryResult').classList.add('hidden'); document.getElementById('flowResult').classList.add('hidden');
+            if(type==='summary') {
                 document.getElementById('summaryResult').classList.remove('hidden');
-                document.getElementById('resultBackground').textContent = result.background;
-                document.getElementById('resultFeatures').innerHTML = result.core_features.map(f => `<li>${f}</li>`).join('');
-                document.getElementById('resultLanguage').textContent = result.tech_stack.language;
-                document.getElementById('resultFramework').textContent = result.tech_stack.framework;
-                document.getElementById('resultDatabase').textContent = result.tech_stack.database || '未识别';
-                document.getElementById('resultTools').textContent = result.tech_stack.tools.join(', ') || '无';
-                document.getElementById('resultTree').textContent = result.directory_tree;
-            } else if (type === 'flow') {
+                document.getElementById('resultBackground').textContent=result.background; document.getElementById('resultArchitecture').textContent=result.architecture_summary || '未识别';
+                renderList('resultFeatures',result.core_features); renderList('resultEntries',[...(result.entry_points||[]),...(result.data_and_config||[])]); renderList('resultRisks',result.risks_and_notes);
+                document.getElementById('resultLanguage').textContent=result.tech_stack.language; document.getElementById('resultFramework').textContent=result.tech_stack.framework; document.getElementById('resultDatabase').textContent=result.tech_stack.database || (result.tech_stack.data_storage||[]).join('、') || '未识别'; document.getElementById('resultTools').textContent=(result.tech_stack.tools||[]).join('、') || '无'; document.getElementById('resultTree').textContent=result.directory_tree;
+                document.getElementById('resultModules').innerHTML=(result.directory_modules||[]).map(m=>`<div class="rounded-xl bg-slate-50 border border-slate-200 p-3"><h4 class="font-semibold text-sm">${escapeHtml(m.path)}</h4><p class="text-xs text-slate-600 mt-1 leading-5">${escapeHtml(m.role)}</p><p class="text-xs text-slate-500 mt-2">关键文件：${escapeHtml((m.key_files||[]).join('、')||'未识别')}</p><p class="text-xs text-slate-500 mt-1">关系：${escapeHtml((m.relationships||[]).join('；')||'未识别')}</p></div>`).join('') || '<p class="text-sm text-slate-500">未识别核心模块</p>';
+                document.getElementById('resultEvidence').innerHTML=(result.tech_stack.evidence||[]).map(x=>`<div class="rounded-xl bg-indigo-50/60 border border-indigo-100 p-3"><div class="flex justify-between"><h4 class="font-semibold text-sm">${escapeHtml(x.technology)}</h4><span class="text-xs text-indigo-600">${escapeHtml(x.confidence)}</span></div><p class="text-xs text-slate-600 mt-1">${escapeHtml(x.purpose)}</p><p class="text-xs text-slate-500 mt-2 break-all">依据：${escapeHtml((x.evidence||[]).join('、'))}</p></div>`).join('') || '<p class="text-sm text-slate-500">暂无可确认的技术证据</p>';
+            } else {
                 document.getElementById('flowResult').classList.remove('hidden');
-                renderMermaid(result.markdown_report);
-                const cleanMarkdown = result.markdown_report.replace(/```mermaid[\s\S]*?```/g, '');
-                document.getElementById('resultMarkdown').innerHTML = parseMarkdown(cleanMarkdown);
-                renderGraph(result.graph_data);
-                document.getElementById('resultGraph').textContent = JSON.stringify(result.graph_data, null, 2);
+                document.getElementById('resultMarkdown').innerHTML=parseMarkdown(result.markdown_report.replace(/```mermaid[\s\S]*?```/gi,''));
+                await renderMermaidCode('mermaidContainer',graphCode(result.flowchart_data,true)); await renderMermaidCode('graphContainer',graphCode(result.graph_data,false));
+                document.getElementById('graphLegend').innerHTML='<span>蓝色：文件</span><span>绿色：类</span><span>紫色：函数</span>'; document.getElementById('resultGraph').textContent=JSON.stringify(result.graph_data,null,2);
             }
         }
+
+        function toggleGraphJson(){ const pre=document.getElementById('resultGraph'),btn=document.getElementById('toggleGraphJson'); pre.classList.toggle('hidden'); btn.textContent=pre.classList.contains('hidden')?'查看原始关系 JSON':'隐藏原始关系 JSON'; }
+        function resetPage(){ clearFiles(); document.getElementById('result').classList.add('hidden'); window.scrollTo({top:0,behavior:'smooth'}); }
     </script>
 </body>
-
 </html>

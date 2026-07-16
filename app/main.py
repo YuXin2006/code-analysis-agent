@@ -1,14 +1,16 @@
 # app/main.py
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, Form, UploadFile, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from app.services.tech_detector import TechDetectorService
 from app.services.data_flow import DataFlowService
 from app.services.code_parser import CodeParserService
 from app.utils.file_utils import generate_tree_structure
+from app.core.config import settings
 import os
 import shutil
 import uuid
+from pathlib import Path
 
 app = FastAPI(title="代码分析助手", description="拖拽文件夹上传，自动生成技术分析报告")
 
@@ -32,27 +34,41 @@ async def read_root():
     return HTMLResponse(content="前端页面未找到，请先创建 static/index.html")
 
 @app.post("/api/upload")
-async def upload_files(files: list[UploadFile] = File(...), rel_path: str = "", session_id: str = None):
+async def upload_files(
+    files: list[UploadFile] = File(...),
+    rel_paths: list[str] = Form(default=[]),
+    session_id: str | None = Form(default=None)
+):
     """接收上传的文件，保存到临时目录"""
     # 如果没有提供 session_id，则生成新的
     if not session_id:
         session_id = str(uuid.uuid4())
+    else:
+        try:
+            session_id = str(uuid.UUID(session_id))
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="session_id 不合法") from exc
     
-    project_dir = os.path.join(TEMP_DIR, session_id)
-    os.makedirs(project_dir, exist_ok=True)
+    project_dir = Path(TEMP_DIR, session_id).resolve()
+    project_dir.mkdir(parents=True, exist_ok=True)
     
-    for file in files:
-        # 构建文件路径
-        if rel_path:
-            file_path = os.path.join(project_dir, rel_path, file.filename)
-        else:
-            file_path = os.path.join(project_dir, file.filename)
+    for index, file in enumerate(files):
+        if file.size is not None and file.size > settings.MAX_FILE_SIZE_MB * 1024 * 1024:
+            raise HTTPException(
+                status_code=413,
+                detail=f"文件 {file.filename} 超过 {settings.MAX_FILE_SIZE_MB} MB 限制"
+            )
+        relative_dir = rel_paths[index] if index < len(rel_paths) else ""
+        relative_dir = relative_dir.replace("\\", "/").strip("/")
+        file_path = (project_dir / relative_dir / Path(file.filename).name).resolve()
+        if project_dir not in file_path.parents:
+            raise HTTPException(status_code=400, detail="上传路径不合法")
         
         # 创建目录
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        file_path.parent.mkdir(parents=True, exist_ok=True)
         
         # 保存文件
-        with open(file_path, "wb") as f:
+        with file_path.open("wb") as f:
             shutil.copyfileobj(file.file, f)
     
     return {"session_id": session_id, "message": f"成功上传 {len(files)} 个文件"}
@@ -73,12 +89,23 @@ async def analyze_project(session_id: str, analysis_type: str = "summary"):
             return {
                 "type": "summary",
                 "background": result.background,
+                "architecture_summary": result.architecture_summary,
                 "core_features": result.core_features,
+                "entry_points": result.entry_points,
+                "directory_modules": [item.model_dump() for item in result.directory_modules],
+                "data_and_config": result.data_and_config,
+                "risks_and_notes": result.risks_and_notes,
                 "tech_stack": {
                     "language": result.tech_stack.language,
                     "framework": result.tech_stack.framework,
                     "database": result.tech_stack.database or "",
-                    "tools": result.tech_stack.tools
+                    "tools": result.tech_stack.tools,
+                    "frontend": result.tech_stack.frontend,
+                    "backend": result.tech_stack.backend,
+                    "data_storage": result.tech_stack.data_storage,
+                    "testing": result.tech_stack.testing,
+                    "deployment": result.tech_stack.deployment,
+                    "evidence": [item.model_dump() for item in result.tech_stack.evidence]
                 },
                 "directory_tree": generate_tree_structure(project_dir)
             }
@@ -91,6 +118,7 @@ async def analyze_project(session_id: str, analysis_type: str = "summary"):
             return {
                 "type": "flow",
                 "markdown_report": result["markdown_report"],
+                "flowchart_data": result["flowchart_data"],
                 "graph_data": result["graph_data"]
             }
         else:
